@@ -10,7 +10,7 @@
         h1 { color: #6d4c41; }
         h2 { color: #333; }
         button { background: #6d4c41; color: white; padding: 15px 30px; border: none; border-radius: 8px; font-size: 20px; cursor: pointer; margin-top: 20px; }
-        #msg { margin-top: 20px; font-weight: bold; color: #d32f2f; }
+        #msg { margin-top: 20px; font-weight: bold; color: #d32f2f; font-size: 14px; word-wrap: break-word; max-width: 300px; margin-left: auto; margin-right: auto; }
     </style>
 </head>
 <body>
@@ -23,7 +23,6 @@
     </div>
 
     <script>
-        // تم وضع مفتاح الـ API الجديد هنا بنجاح يا شفت
         const API_KEY = "Kkdorsxjbvpcboqkhsrldyhg2noabquonjxkpdjzyl0ymipglf1d3niymdycukyb";
 
         function startPiPayment() {
@@ -45,37 +44,71 @@
                     metadata: { item: "top" }
                 }, {
                     onReadyForServerApproval: function(paymentId) {
-                        msg.innerText = "جاري إعطاء الموافقة التلقائية للشبكة...";
+                        msg.style.color = "blue";
+                        msg.innerText = "جاري إرسال الموافقة... عاين هنا!";
                         
-                        // إرسال الموافقة السرية باستخدام مفتاحك الجديد
-                        fetch("https://corsproxy.io/?https://api.minepi.com/v2/payments/" + paymentId + "/approve", {
+                        const approveUrl = "https://api.minepi.com/v2/payments/" + paymentId + "/approve";
+                        const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(approveUrl);
+
+                        // إرسال الموافقة مع تشفير الرابط وحزمة بيانات فاضية
+                        fetch(proxyUrl, {
                             method: "POST",
-                            headers: { "Authorization": "Key " + API_KEY }
-                        }).then(response => {
-                            msg.innerText = "تمت الموافقة! كمل الدفع من الشاشة الخرجت ليك.";
+                            headers: { 
+                                "Authorization": "Key " + API_KEY,
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({}) // مهمة جداً لشبكة Pi
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if(data.error) {
+                                msg.style.color = "red";
+                                msg.innerText = "رفض السيرفر: " + data.error.message;
+                            } else {
+                                msg.style.color = "green";
+                                msg.innerText = "تمت الموافقة من السيرفر! كمل الدفع واضغط إرسال.";
+                            }
+                        })
+                        .catch(err => {
+                            msg.style.color = "red";
+                            msg.innerText = "فشل البروكسي: " + err.message;
                         });
                     },
                     onReadyForServerCompletion: function(paymentId, txid) {
-                        msg.innerText = "جاري تأكيد استلام الأموال...";
+                        msg.innerText = "جاري تأكيد الدفع النهائي...";
                         
-                        fetch("https://corsproxy.io/?https://api.minepi.com/v2/payments/" + paymentId + "/complete", {
+                        const completeUrl = "https://api.minepi.com/v2/payments/" + paymentId + "/complete";
+                        const proxyUrl2 = "https://corsproxy.io/?" + encodeURIComponent(completeUrl);
+
+                        fetch(proxyUrl2, {
                             method: "POST",
                             headers: { 
                                 "Authorization": "Key " + API_KEY,
                                 "Content-Type": "application/json"
                             },
                             body: JSON.stringify({ txid: txid })
-                        }).then(response => {
-                            msg.style.color = "green";
-                            msg.innerText = "ألف مبروك! تمت العملية بنجاح تامة.";
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if(data.error) {
+                                msg.style.color = "red";
+                                msg.innerText = "خطأ في التأكيد: " + data.error.message;
+                            } else {
+                                msg.style.color = "green";
+                                msg.innerText = "ألف مبروك! تمت العملية بنجاح 100%.";
+                            }
+                        })
+                        .catch(err => {
+                            msg.style.color = "red";
+                            msg.innerText = "خطأ في الاتصال: " + err.message;
                         });
                     },
-                    onCancel: function(paymentId) { msg.style.color = "orange"; msg.innerText = "ألغيت الدفع."; },
-                    onError: function(error, payment) { msg.style.color = "red"; msg.innerText = "خطأ في الدفع."; }
+                    onCancel: function(paymentId) { msg.style.color = "orange"; msg.innerText = "تم إلغاء الدفع."; },
+                    onError: function(error, payment) { msg.style.color = "red"; msg.innerText = "خطأ من المحفظة."; }
                 });
             }).catch(function(error) {
                 msg.style.color = "red";
-                msg.innerText = "اضغط على الزر مرة تانية بعد 3 ثواني.";
+                msg.innerText = "مشكلة في المصادقة، حدّث الصفحة.";
             });
         }
     </script>
